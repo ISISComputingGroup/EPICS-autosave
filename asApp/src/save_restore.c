@@ -1298,7 +1298,7 @@ STATIC int connect_list(struct chlist *plist, int verbose)
 				n++;
 			} else {
 				if (verbose) {
-					errlogPrintf("save_restore: connect failed for channel '%s'\n", pchannel->name);
+					errlogSevPrintf(errlogMinor, "save_restore: connect failed for channel '%s'\n", pchannel->name);
 				}
 			}
  		}
@@ -1330,8 +1330,8 @@ STATIC int connect_list(struct chlist *plist, int verbose)
 	}
 	sprintf(SR_recentlyStr, "%s: %d of %d PV's connected", plist->save_file, n, m);
 	if (verbose) {
-		errlogPrintf(SR_recentlyStr);
-		errlogPrintf("\n");
+		errlogSevPrintf(errlogInfo, SR_recentlyStr);
+		errlogSevPrintf(errlogInfo, "\n");
 	}
 
 	return(get_channel_values(plist));

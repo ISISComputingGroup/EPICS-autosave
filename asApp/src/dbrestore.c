@@ -816,7 +816,7 @@ int reboot_restore(char *filename, initHookState init_state)
 	char		**pairs = NULL;
 	char		*macrostring = NULL;
 
-	errlogPrintf("reboot_restore: entry for file '%s'\n", filename);
+	errlogSevPrintf(errlogInfo, "reboot_restore: entry for file '%s'\n", filename);
 	/* initialize database access routines */
 	if (!pdbbase) {
 		errlogPrintf("reboot_restore: No Database Loaded\n");
@@ -847,7 +847,7 @@ int reboot_restore(char *filename, initHookState init_state)
 		errlogPrintf("reboot_restore: Can't find filename '%s' in list.\n",
 			filename);
 	} else {
-		errlogPrintf("reboot_restore: Found filename '%s' in restoreFileList.\n",
+		errlogSevPrintf(errlogInfo, "reboot_restore: Found filename '%s' in restoreFileList.\n",
 			filename);
 	}
 
@@ -857,7 +857,7 @@ int reboot_restore(char *filename, initHookState init_state)
 	} else {
 		makeNfsPath(fname, saveRestoreFilePath, filename);
 	}
-	errlogPrintf("*** restoring from '%s' at initHookState %d (%s record/device init) ***\n",
+	errlogSevPrintf(errlogInfo, "*** restoring from '%s' at initHookState %d (%s record/device init) ***\n",
 		fname, (int)init_state, pass ? "after" : "before");
 	if ((inp_fd = fopen_and_check(fname, &status)) == NULL) {
 		errlogPrintf("save_restore: Can't open save file.");
@@ -1102,7 +1102,7 @@ int reboot_restore(char *filename, initHookState init_state)
 		p_data = NULL;
 		p_data_size = 0;
 	}
-	errlogPrintf("reboot_restore: done with file '%s'\n\n", filename);
+	errlogSevPrintf(errlogInfo, "reboot_restore: done with file '%s'\n\n", filename);
 	return(OK);
 }
 
@@ -1257,7 +1257,7 @@ FILE *fopen_and_check(const char *fname, long *status)
 
 	/* Still here?  Try the backup file. */
 	strncat(file, "B", 1);
-	errlogPrintf("save_restore: Trying backup file '%s'\n", file);
+	errlogSevPrintf(errlogInfo, "save_restore: Trying backup file '%s'\n", file);
 	inp_fd = checkFile(file);
 	if (inp_fd) return(inp_fd);
 
@@ -1302,7 +1302,7 @@ FILE *fopen_and_check(const char *fname, long *status)
 	/* Try the sequenced backup files. */
 	for (i=0; i<save_restoreNumSeqFiles; i++) {
 		sprintf(p, "%1d", backup_sequence_num);
-		errlogPrintf("save_restore: Trying backup file '%s'\n", file);
+		errlogSevPrintf(errlogInfo, "save_restore: Trying backup file '%s'\n", file);
 		inp_fd = checkFile(file);
 		if (inp_fd) return(inp_fd);
 
