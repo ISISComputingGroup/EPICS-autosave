@@ -11,3 +11,5 @@ EPICS_BASE=/home/oxygen/MOONEY/epics/bazaar/base-3.14
 #Capfast users may need the following definitions
 #CAPFAST_TEMPLATES=
 #SCH2EDIF_PATH=
+
+include $(TOP)/../../../ISIS_CONFIG.$(EPICS_HOST_ARCH)
