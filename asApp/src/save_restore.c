@@ -324,7 +324,8 @@ STATIC epicsThreadId
 #define FROM_ASCII_FILE 2
 
 /*** stuff for reporting status to EPICS client ***/
-STATIC char	status_prefix[30] = "";
+#define STATUS_PREFIX_SIZE	40
+STATIC char	status_prefix[STATUS_PREFIX_SIZE] = "";
 
 STATIC long	SR_status = SR_STATUS_INIT;
 STATIC unsigned short SR_heartbeat = 0;
@@ -432,7 +433,7 @@ void save_restoreSet_NumSeqFiles(int numSeqFiles) {save_restoreNumSeqFiles = num
 void save_restoreSet_SeqPeriodInSeconds(int period) {save_restoreSeqPeriodInSeconds = MAX(10, period);}
 void save_restoreSet_IncompleteSetsOk(int ok) {save_restoreIncompleteSetsOk = ok;}
 void save_restoreSet_DatedBackupFiles(int ok) {save_restoreDatedBackupFiles = ok;}
-void save_restoreSet_status_prefix(char *prefix) {strncpy(status_prefix, prefix, 29);}
+void save_restoreSet_status_prefix(char *prefix) {strncpy(status_prefix, prefix, STATUS_PREFIX_SIZE-1);}
 #if SET_FILE_PERMISSIONS
 void save_restoreSet_FilePermissions(int permissions) {
 	file_permissions = permissions;
