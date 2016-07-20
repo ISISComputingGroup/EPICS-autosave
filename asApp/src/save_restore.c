@@ -3459,7 +3459,7 @@ STATIC int readReqFile(const char *reqFile, struct chlist *plist, char *macrostr
 				}
 				plist->plast_chan = pchannel;
 #endif
-				strcpy(pchannel->name, name);
+				strncpy(pchannel->name, name, sizeof(pchannel->name));
 				strcpy(pchannel->value,"Not Connected");
 				pchannel->enum_val = -1;
 				pchannel->max_elements = 0;
