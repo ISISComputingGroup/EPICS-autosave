@@ -861,7 +861,7 @@ int reboot_restore(char *filename, initHookState init_state)
 	errlogSevPrintf(errlogInfo, "*** restoring from '%s' at initHookState %d (%s record/device init) ***\n",
 		fname, (int)init_state, pass ? "after" : "before");
 	if ((inp_fd = fopen_and_check(fname, &status)) == NULL) {
-		errlogPrintf("save_restore: Can't open save file.");
+		errlogSevPrintf(errlogInfo, "save_restore: Can't open save file.");
 		if (pStatusVal) *pStatusVal = SR_STATUS_FAIL;
 		if (statusStr) strcpy(statusStr, "Can't open save file.");
 		dbFinishEntry(pdbentry);
@@ -1179,7 +1179,7 @@ FILE *checkFile(const char *file)
 	if (save_restoreDebug >= 2) printf("checkFile: entry\n");
 
 	if ((inp_fd = fopen(file, "r")) == NULL) {
-		errlogPrintf("save_restore: Can't open file '%s'.\n", file);
+		errlogSevPrintf(errlogInfo, "save_restore: Can't open file '%s'.\n", file);
 		return(0);
 	}
 
@@ -1296,8 +1296,8 @@ FILE *fopen_and_check(const char *fname, long *status)
 		/* Clock are way messed up.  Just try backup 0. */
 		backup_sequence_num = 0;
 		sprintf(p, "%1d", backup_sequence_num);
-		errlogPrintf("save_restore: Can't figure out which seq file is most recent,\n");
-		errlogPrintf("save_restore: so I'm just going to start with '%s'.\n", file);
+		errlogSevPrintf(errlogInfo, "save_restore: Can't figure out which seq file is most recent,\n");
+		errlogSevPrintf(errlogInfo, "save_restore: so I'm just going to start with '%s'.\n", file);
 	}
 
 	/* Try the sequenced backup files. */
@@ -1312,8 +1312,8 @@ FILE *fopen_and_check(const char *fname, long *status)
 			backup_sequence_num = 0;
 	}
 
-	errlogPrintf("save_restore: Can't find a file to restore from...");
-	errlogPrintf("save_restore: ...last tried '%s'. I give up.\n", file);
+	errlogSevPrintf(errlogInfo, "save_restore: Can't find a file to restore from...");
+	errlogSevPrintf(errlogInfo, "save_restore: ...last tried '%s'. I give up.\n", file);
 	printf("save_restore: **********************************\n\n");
 	return(0);
 }
