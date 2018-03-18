@@ -277,7 +277,7 @@ STATIC epicsMutexId	sr_mutex = NULL;			/* mut(ual) ex(clusion) for list of save 
  */
 #define OP_MSG_QUEUE_SIZE 10
 #define OP_MSG_FILENAME_SIZE 100
-#define OP_MSG_MACRO_SIZE 100
+#define OP_MSG_MACRO_SIZE 256
 #define OP_MSG_TRIGGER_SIZE PV_NAME_LEN
 typedef enum {
 	op_RestoreFromSaveFile,
@@ -2632,6 +2632,10 @@ STATIC int request_manual_restore(char *filename, int file_type, char *macrostri
 		return(-1);
 	}
 	strncpy(msg.filename, filename, OP_MSG_FILENAME_SIZE);
+	if ((macrostring) && (strlen(macrostring) > (OP_MSG_MACRO_SIZE - 1))) {
+		printf("request_manual_restore: macro string '%s' is too long for message queue\n", macrostring);
+		return(-1);
+	}
 	if ((macrostring) && (strlen(macrostring)>0)) {
 		strncpy(msg.macrostring, macrostring, OP_MSG_MACRO_SIZE);
 	} else {
