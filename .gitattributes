@@ -9,7 +9,7 @@
 *.hpp text
 *.java text
 *.sh text eol=lf
-*.bat text
+*.bat text eol=crlf
 *.cmd text
 *.db text
 *.dbd text
@@ -24,4 +24,3 @@
 *.jpg binary
 *.class binary
 *.vi binary
-

@@ -10,6 +10,108 @@ content="text/html; charset=iso-8859-1">
 
 <h1 align="center">autosave Release Notes</h1>
 
+<h3>5.10</h3>
+<ul>
+
+<li>Added the user callable function save_restoreSet_periodicDatedBackups(periodInMinutes).</li>
+
+<li>Added PVs SR_disable and SR_disableMaxSecs.</li>
+
+<li>Fixed problem with new versions of base (7.x, 3.15.6). 
+  Empty long string fields were being saved as the string "0", rather than an empty string.</li>
+
+</ul>
+
+<h3>5.9</h3>
+<ul>
+
+<li>Added op/ui/autoconvert directory.
+
+<li>New version of *Main.cpp file from base 3.15.5; contains epicsExit() after iocsh(NULL) which is needed for epicsAtExit() to work on Windows
+
+<li>Use dbLoadRecordsHook by default.  (This enables automated build of autosave request files.)
+
+</ul>
+
+<h3>5.8</h3>
+<ul>
+
+<li>Modified save_restore.c to create message queue before returning from
+create_data_set().
+
+<li>Modified configMenuSub.c to defend against .cfg file with no "currDesc" PV.
+
+<li>Don't try to set file permissions for vxWorks < 6.6
+
+<li>Added top level directory, iocsh, and added the scripts autosaveBuild.iocsh,
+configMenu.iocsh, autosave_settings.iocsh, and save_restore.iocsh which are
+callable by iocshLoad().  (See <A
+HREF="https://github.com/epics-modules/xxx/wiki/IOC-Shell-Scripts">IOC Shell
+Scripts</A>, for more information.) 
+
+<li>Martin Konrad's fix to allow all legal PV names in an autosave-request file.
+
+<li>Keenan Lang: Added callable iocsh scripts.  Further information about
+callable iocsh scripts can be found in the <A
+HREF="https://github.com/epics-modules/xxx/wiki/IOC-Shell-Scripts">xxx module
+wiki</A>
+
+<li>marcio.paduan.donadio: Added function to print human readable error message
+case fchmod fails.  fchmod should be called only if
+save_restoreSet_FilePermissions is used.
+
+<li>marcio.paduan.donadio: save_restoreStatus.db: Alarms are set by default in
+mbbo records when a failure/warning condition is met
+
+<li>dbrestore.c: Removed dbVerify calls, because that function is not in EPICS
+3.16.
+
+<li>Modified .adl files so caQtDM conversion yields better results.
+
+<li>use dbPut() for DBF_NOACCESS fields in dbrestore:scaler_restore.  This fixes
+the problem of one-element waveform and aao records not being restored in 3.15.
+
+<li>Modified configMenu*.adl so that caQtDM translations performed better.
+
+</ul>
+
+<h3>5.7.1</h3>
+<ul>
+<li>Modified .adl files so they translate better to caQtDM.
+
+<li>Modified .ui (caQtDM) files  because adl2ui 3.9.3 and earlier don't honor
+direction=right.
+
+</ul>
+
+
+<h3>5.7</h3>
+<ul>
+
+<li>configMenu now supports an unlimited number of config files.  This made it
+necessary to provide a new PV by which CA clients can directly write the
+config-file name.
+
+<li>sprintf -> epicsSnprintf, strcat -> strncat, etc.
+
+<li>speed up autosaveBuild by caching names of five most recently
+found/not-found request files.
+
+</ul>
+
+<h3>5.6.2</h3>
+<ul>
+
+<li>save_restoreSet_FilePermissions() wasn't working.  open() wasn't setting file permissions, but
+fchmod() does.
+
+<li>autosaveBuild was failing to correctly handle lines > 119 significant characters.  Increased max line
+length to 199.
+
+<li>More string-length checking.
+
+</ul>
+
 <h3>5.6.1</h3>
 <ul>
 <li>asVerify can now be called from the IOC console

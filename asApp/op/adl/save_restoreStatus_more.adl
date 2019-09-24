@@ -1,14 +1,14 @@
 
 file {
 	name="/home/oxygen/MOONEY/epics/synApps/support/autosave/asApp/op/adl/save_restoreStatus_more.adl"
-	version=030102
+	version=030111
 }
 display {
 	object {
 		x=208
 		y=539
 		width=400
-		height=230
+		height=255
 	}
 	clr=14
 	bclr=3
@@ -205,7 +205,7 @@ polygon {
 	}
 	clr=0
 	bclr=63
-	label="-M C T R P"
+	label="-P R T C M"
 }
 "text update" {
 	object {
@@ -325,72 +325,61 @@ polygon {
 	bclr=63
 	label="-Less"
 }
-composite {
+"text update" {
+	object {
+		x=120
+		y=86
+		width=210
+		height=12
+	}
+	monitor {
+		chan="$(P)SR_rebootStatusStr"
+		clr=54
+		bclr=2
+	}
+	limits {
+	}
+}
+"text update" {
+	object {
+		x=10
+		y=80
+		width=100
+		height=20
+	}
+	monitor {
+		chan="$(P)SR_rebootStatus"
+		clr=54
+		bclr=3
+	}
+	limits {
+	}
+}
+text {
 	object {
 		x=10
 		y=60
-		width=320
-		height=40
+		width=150
+		height=20
 	}
-	"composite name"=""
-	children {
-		"text update" {
-			object {
-				x=120
-				y=86
-				width=210
-				height=12
-			}
-			monitor {
-				chan="$(P)SR_rebootStatusStr"
-				clr=54
-				bclr=2
-			}
-			limits {
-			}
-		}
-		"text update" {
-			object {
-				x=10
-				y=80
-				width=100
-				height=20
-			}
-			monitor {
-				chan="$(P)SR_rebootStatus"
-				clr=54
-				bclr=3
-			}
-			limits {
-			}
-		}
-		text {
-			object {
-				x=10
-				y=60
-				width=150
-				height=20
-			}
-			"basic attribute" {
-				clr=14
-			}
-			textix="reboot status"
-		}
-		"text update" {
-			object {
-				x=170
-				y=63
-				width=150
-				height=14
-			}
-			monitor {
-				chan="$(P)SR_rebootTime"
-				clr=54
-				bclr=3
-			}
-			limits {
-			}
-		}
+	"basic attribute" {
+		clr=14
+	}
+	textix="reboot status"
+}
+"text update" {
+	object {
+		x=170
+		y=63
+		width=150
+		height=14
+	}
+	monitor {
+		chan="$(P)SR_rebootTime"
+		clr=54
+		bclr=3
+	}
+	limits {
 	}
 }
 polyline {
@@ -482,7 +471,8 @@ byte {
 		clr=14
 		bclr=3
 	}
-	sbit=4
+	sbit=0
+	ebit=4
 }
 "text update" {
 	object {
@@ -556,7 +546,8 @@ byte {
 		clr=14
 		bclr=3
 	}
-	sbit=4
+	sbit=0
+	ebit=4
 }
 "text update" {
 	object {
@@ -624,5 +615,62 @@ polygon {
 		(362,17)
 		(359,20)
 		(358,20)
+	}
+}
+text {
+	object {
+		x=155
+		y=233
+		width=120
+		height=14
+	}
+	"basic attribute" {
+		clr=14
+	}
+	textix="Disable Max Secs"
+}
+"choice button" {
+	object {
+		x=6
+		y=231
+		width=130
+		height=20
+	}
+	control {
+		chan="$(P)SR_disable"
+		clr=14
+		bclr=51
+	}
+	stacking="column"
+}
+"text entry" {
+	object {
+		x=276
+		y=231
+		width=90
+		height=20
+	}
+	control {
+		chan="$(P)SR_disableMaxSecs"
+		clr=14
+		bclr=51
+	}
+	limits {
+	}
+}
+polyline {
+	object {
+		x=0
+		y=226
+		width=401
+		height=2
+	}
+	"basic attribute" {
+		clr=54
+		width=2
+	}
+	points {
+		(1,227)
+		(400,227)
 	}
 }
