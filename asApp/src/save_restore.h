@@ -45,7 +45,7 @@ static char SR_STATUS_STR[5][10] =
 #define FLOAT_FMT "%.7g"
 #define DOUBLE_FMT "%.14g"
 
-#define BUF_SIZE 120
+#define BUF_SIZE 200
 #define EBUF_SIZE BUF_SIZE*2
 #define ARRAY_BEGIN '{'
 #define ARRAY_END '}'
@@ -57,7 +57,9 @@ static char SR_STATUS_STR[5][10] =
 
 #define FN_LEN 80 /* filename length */
 #define STRING_LEN MAX_STRING_SIZE	/* EPICS max length for string PV */
+#define STATUS_STR_LEN 300
 #define PV_NAME_LEN 80 /* string containing a PV name */
+#define MAXSTRING 300
 
 struct restoreFileListItem {
     ELLNODE node;
@@ -112,7 +114,8 @@ extern float mySafeDoubleToFloat(double d);
 /* strncpy sucks (may copy extra characters, may not null-terminate) */
 #define strNcpy(dest, src, N) {			\
 	int ii;								\
-	char *dd=dest, *ss=src;				\
+	char *dd=dest;						\
+	const char *ss=src;					\
 	for (ii=0; *ss && ii < N-1; ii++)	\
 		*dd++ = *ss++;					\
 	*dd = '\0';							\

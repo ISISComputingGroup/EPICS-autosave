@@ -11,6 +11,12 @@ include $(TOP)/configure/CONFIG
 # Create and install (or just install) into <top>/db
 # databases, templates, substitutions like this
 #DB += xxx.db
+DB += save_restoreStatus.db
+DB += configMenu.db
+
+REQ += configMenuNames.req
+REQ += configMenu.req
+REQ += configMenu_settings.req
 
 #----------------------------------------------------
 # If <anyname>.db template is not named <anyname>*.template add
