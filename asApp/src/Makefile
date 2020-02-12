@@ -5,6 +5,8 @@ include $(TOP)/configure/CONFIG
 #  ADD MACRO DEFINITIONS AFTER THIS LINE
 #=============================
 
+USR_CFLAGS += -DUSE_TYPED_RSET
+
 PROD_HOST += asVerify
 asVerify_SRCS	+= asVerify.c verify.c
 asVerify_LIBS	+= ca
@@ -16,7 +18,9 @@ asVerify_LIBS	+= Com
 
 #DBDINC += xxxRecord
 
-# Trial version that uses dbLoadRecordsHookRegister.
+# To enable autosaveBuild, use dbLoadRecordsHookRegister().  (Requires EPICS
+# base 3.14.12.5 or later.)
+
 USR_CFLAGS += -DDBLOADRECORDSHOOKREGISTER
 
 # <name>.dbd will be created from <name>Include.dbd
@@ -61,3 +65,4 @@ include $(TOP)/configure/RULES
 #----------------------------------------
 #  ADD RULES AFTER THIS LINE
 
+dbrestore.o:   ../Makefile
