@@ -111,6 +111,8 @@ extern int eraseFile(const char *filename);
 extern int appendToFile(const char *filename, const char *line);
 extern float mySafeDoubleToFloat(double d);
 
+extern FILE* openShared(const char* filename, const char* mode);
+
 /* strncpy sucks (may copy extra characters, may not null-terminate) */
 #define strNcpy(dest, src, N) {			\
 	int ii;								\

@@ -170,8 +170,8 @@ STATIC int myFileCopy(const char *source, const char *dest)
 
 	if (stat(source, &fileStat) == 0) size = (int)fileStat.st_size;
 	errno = 0;
-	if ((source_fd = fopen(source,"rb")) == NULL) {
-		errlogPrintf("save_restore:myFileCopy: Can't open file '%s'\n", source);
+	if ((source_fd = openShared(source,"rb")) == NULL) {
+		errlogPrintf("save_restore:myFileCopy: Can't open source file '%s'\n", source);
 		/* if (errno) myPrintErrno("myFileCopy", __FILE__, __LINE__); */
 		if (++save_restoreIoErrors > save_restoreRemountThreshold) 
 			save_restoreNFSOK = 0;
@@ -182,8 +182,8 @@ STATIC int myFileCopy(const char *source, const char *dest)
 	 * to S_nfsLib_NFSERR_NOENT even though it succeeds.  Probably this means
 	 * a failed attempt was retried. (System calls never set errno to zero.)
 	 */
-	if ((dest_fd = fopen(dest,"wb")) == NULL) {
-		errlogPrintf("save_restore:myFileCopy: Can't open file '%s'\n", dest);
+	if ((dest_fd = openShared(dest,"wb")) == NULL) {
+		errlogPrintf("save_restore:myFileCopy: Can't open dest file '%s'\n", dest);
 		/* if (errno) myPrintErrno("myFileCopy", __FILE__, __LINE__); */
 		fclose(source_fd);
 		return(ERROR);
@@ -196,12 +196,12 @@ STATIC int myFileCopy(const char *source, const char *dest)
 	}
 	errno = 0;
 	if (fclose(source_fd) != 0){
-                errlogPrintf("save_restore:myFileCopy: Error closing file '%s'\n", source);
+                errlogPrintf("save_restore:myFileCopy: Error closing source file '%s'\n", source);
 		/* if (errno) myPrintErrno("myFileCopy", __FILE__, __LINE__); */
 	}
 	errno = 0;
 	if (fclose(dest_fd) != 0){
-		errlogPrintf("save_restore:myFileCopy: Error closing file '%s'\n", dest);
+		errlogPrintf("save_restore:myFileCopy: Error closing dest file '%s'\n", dest);
 		/* if (errno) myPrintErrno("myFileCopy", __FILE__, __LINE__); */
 	}
 	errno = 0;
@@ -843,7 +843,7 @@ int reboot_restore(char *filename, initHookState init_state)
 	errlogSevPrintf(errlogInfo, "*** restoring from '%s' at initHookState %d (%s record/device init) ***\n",
 		fname, (int)init_state, pass ? "after" : "before");
 	if ((inp_fd = fopen_and_check(fname, &status)) == NULL) {
-		errlogSevPrintf(errlogInfo, "save_restore: Can't open save file.");
+		errlogSevPrintf(errlogInfo, "save_restore: Can't open save file '%s'.\n\n", filename);
 		if (pStatusVal) *pStatusVal = SR_STATUS_FAIL;
 		if (statusStr) strNcpy(statusStr, "Can't open save file.", STATUS_STR_LEN-1);
 		dbFinishEntry(pdbentry);
@@ -1163,8 +1163,8 @@ FILE *checkFile(const char *file)
 
 	if (save_restoreDebug >= 2) printf("checkFile: entry\n");
 
-	if ((inp_fd = fopen(file, "r")) == NULL) {
-		errlogSevPrintf(errlogInfo, "save_restore: Can't open file '%s'.\n", file);
+	if ((inp_fd = openShared(file, "r")) == NULL) {
+		errlogSevPrintf(errlogInfo, "save_restore: Can't open file '%s': %s.\n", file, strerror(errno));
 		return(0);
 	}
 
@@ -1298,7 +1298,7 @@ FILE *fopen_and_check(const char *fname, long *status)
 			backup_sequence_num = 0;
 	}
 
-	errlogSevPrintf(errlogInfo, "save_restore: Can't find a file to restore from...");
+	errlogSevPrintf(errlogInfo, "save_restore: Can't find a file to restore from...\n");
 	errlogSevPrintf(errlogInfo, "save_restore: ...last tried '%s'. I give up.\n", file);
 	printf("save_restore: **********************************\n\n");
 	return(0);
@@ -1470,8 +1470,8 @@ void makeAutosaveFileFromDbInfo(char *fileBaseName, char *info_name)
 		}
 		epicsSnprintf(fname, strlen(fileBaseName)+sizeof(".req"), "%s.req", fileBaseName);
 	}
-	if ((out_fd = fopen(fname,"w")) == NULL) {
-		errlogPrintf("save_restore:makeAutosaveFileFromDbInfo - unable to open file '%s'\n", fname);
+	if ((out_fd = openShared(fname,"w")) == NULL) {
+		errlogPrintf("save_restore:makeAutosaveFileFromDbInfo - unable to open file '%s': %s\n", fname, strerror(errno));
 		free(falloc);
 		return;
 	}
@@ -1537,7 +1537,7 @@ int eraseFile(const char *filename) {
 		printf("save_restore:eraseFile: macEnvExpand('%s') returned NULL\n", filename);
 		return(ERROR);
 	}
-	if ((fd = fopen(fname, "w")) != NULL) {
+	if ((fd = openShared(fname, "w")) != NULL) {
 		fclose(fd);
 	}
 	free(fname);
@@ -1554,7 +1554,7 @@ int appendToFile(const char *filename, const char *line) {
 		printf("save_restore:appendToFile: macEnvExpand('%s') returned NULL\n", filename);
 		return(ERROR);
 	}
-	if ((fd = fopen(fname, "a")) != NULL) {
+	if ((fd = openShared(fname, "a")) != NULL) {
 		fprintf(fd, "%s\n", line);
 		fclose(fd);
 	} else {

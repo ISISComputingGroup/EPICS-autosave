@@ -171,10 +171,11 @@
 #include 	"osdNfs.h"              /* qiao: routine of os dependent code, for NFS */
 #include	"configMenuClient.h"
 
-#define SET_FILE_PERMISSIONS 1
 
 #ifdef _WIN32
   #define SET_FILE_PERMISSIONS 0
+#else
+  #define SET_FILE_PERMISSIONS 1
 #endif
 
 #ifdef vxWorks
@@ -669,7 +670,7 @@ int findConfigFiles(char *config, ELLLIST *configMenuList) {
 					strNcpy(pLI->name, thisname, strlen(thisname)+1);
 					if (save_restoreDebug) printf("findConfigFiles: found config file '%s'\n", pLI->name);
 					makeNfsPath(fullpath, saveRestoreFilePath, filename);
-					if ((fd = fopen(fullpath, "r"))) {
+					if ((fd = openShared(fullpath, "r"))) {
 						if (save_restoreDebug) printf("findConfigFiles: searching '%s' for description\n", fullpath);
 						found = 0;
 						while (!found && (bp=fgets(buffer, BUF_SIZE, fd))) {
@@ -1066,12 +1067,13 @@ STATIC int save_restore(void)
 
 			/* qiao: check the call back timeout if the save method is periodic or monitored */
 			if ((plist->save_method & PERIODIC) || (plist->save_method & MONITORED) == MONITORED) {
+                double tdiff;
 				if ((save_restoreCallbackTimeout > MIN_PERIOD) &&
-					(epicsTimeDiffInSeconds(&currTime, &plist->callback_time) > save_restoreCallbackTimeout)) {
+					( (tdiff = epicsTimeDiffInSeconds(&currTime, &plist->callback_time)) > save_restoreCallbackTimeout)) {
 			    		plist->save_state = plist->save_method;
 
 					if (save_restoreDebug > 1)
-			    			printf("save_restore: Callback time out of %s, force to save!\n", plist->reqFile);
+			    			printf("save_restore: Callback time out of %s %f > %d, force to save!\n", plist->reqFile, tdiff, save_restoreCallbackTimeout);
 				}
 			}
 
@@ -1683,7 +1685,7 @@ STATIC int check_file(char *file)
 	char tmpstr[20];
 	int	 file_state = BS_NONE;
 
-	if ((fd = fopen(file, "r")) != NULL) {
+	if ((fd = openShared(file, "r")) != NULL) {
 		if (fseek(fd, -7, SEEK_END)) {
 			printf("save_restore:check_file: seek failed\n");
 			file_state = BS_BAD;
@@ -1792,6 +1794,7 @@ STATIC int write_it(char *filename, struct chlist *plist)
 
 	/* open the file */
 	errno = 0;
+    /* WIN32 has SET_FILE_PERMISSIONS == 0 so we have not added an _sopen() section here */
 #if SET_FILE_PERMISSIONS
 	/* Note: must truncate, else file retains old characters when its used length decreases. */
 	filedes = open(filename, O_RDWR | O_CREAT | O_TRUNC, file_permissions);
@@ -1818,7 +1821,7 @@ STATIC int write_it(char *filename, struct chlist *plist)
 		out_fd = fdopen(filedes, "w");
 	}
 #else
-	if ((out_fd = fopen(filename,"w")) == NULL) {
+	if ((out_fd = openShared(filename,"w")) == NULL) {
 		printf("save_restore:write_it - unable to open file '%s' [%s]\n",
 			filename, datetime);
 		if (errno) myPrintErrno("write_it", __FILE__, __LINE__);
@@ -2099,7 +2102,7 @@ STATIC int write_save_file(struct chlist *plist, const char *configName, char *r
 		char datetime[32];
 		FILE *test_fd;
 
-		if ((test_fd = fopen(save_file,"rb")) != NULL) {
+		if ((test_fd = openShared(save_file,"rb")) != NULL) {
 			fGetDateStr(datetime);
 			strNcpy(backup_file, save_file, NFS_PATH_LEN);
 			strncat(backup_file, "_", NFS_PATH_LEN-strlen(backup_file));
@@ -3341,8 +3344,8 @@ STATIC int do_manual_restore(char *filename, int file_type, char *macrostring)
 					status = SR_put_array_values(pchannel->name, pchannel->pArray, pchannel->curr_elements);
 					if (status) printf("do_manual_restore:SR_put_array_values() to '%s'failed.\n", pchannel->name);
 				}
+			    if (status) num_errs++;
 			}
-			if (status) num_errs++;
 			if (ca_pend_io(1.0) != ECA_NORMAL) {
 				printf("save_restore:do_manual_restore: not all channels restored\n");
 			}
@@ -3367,7 +3370,7 @@ STATIC int do_manual_restore(char *filename, int file_type, char *macrostring)
 	if (file_type == FROM_SAVE_FILE) {
 		inp_fd = fopen_and_check(restoreFile, &status);
 	} else {
-		inp_fd = fopen(restoreFile, "r");
+		inp_fd = openShared(restoreFile, "r");
 	}
 	if (inp_fd == NULL) {
 		printf("save_restore:do_manual_restore: Can't open save file.");
@@ -3585,12 +3588,12 @@ int openReqFile(const char *reqFile, FILE **fpp)
 		/* try to find reqFile in every directory specified in reqFilePathList */
 		for (p = reqFilePathList; p; p = p->pnext) {
 			makeNfsPath(tmpfile, p->path, reqFile);
-			trial_fd = fopen(tmpfile, "r");
+			trial_fd = openShared(tmpfile, "r");
 			if (trial_fd) break;
 		}
 	} else {
 		/* try to find reqFile only in current working directory */
-		trial_fd = fopen(reqFile, "r");
+		trial_fd = openShared(reqFile, "r");
 	}
 	if (fpp) *fpp = trial_fd;
 	if (trial_fd) {
