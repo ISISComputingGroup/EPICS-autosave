@@ -16,6 +16,10 @@
 
 #include "save_restore.h"
 
+#ifdef _WIN32
+#include    <share.h> /* for _fsopen */
+#endif /* _WIN32 */
+
 #ifndef PVNAME_STRINGSZ
 #define PVNAME_STRINGSZ 61	/* includes terminating null */
 #endif
@@ -49,14 +53,14 @@ int do_asVerify(char *fileName, int verbose, int debug, int write_restore_file, 
 	long 	element_count=0, storageBytes=0, alloc_CA_buffer=0;
 
 
-	fp = fopen(fileName,"r");
+	fp = openShared(fileName,"r");
 	if (fp == NULL) {printf("asVerify: Can't open '%s'.\n", fileName); return(-1);}
 
 	if (write_restore_file) {
 		strcpy(trial_restoreFileName, restoreFileName);
 		strcat(trial_restoreFileName, "B");
 		if (debug) {printf("asVerify: restoreFileName '%s'.\n", restoreFileName);}
-		fr = fopen(trial_restoreFileName,"w");
+		fr = openShared(trial_restoreFileName,"w");
 		if (fr == NULL) {
 			printf("asVerify: Can't open restore_file '%s' for writing.\n", trial_restoreFileName);
 			write_restore_file = 0;
@@ -376,8 +380,8 @@ int do_asVerify(char *fileName, int verbose, int debug, int write_restore_file, 
 		fclose(fr);
 		if (numPVsNotConnected < numPVs/2)  {
 			/* copy trial restore file to real restore file */
-			fr = fopen(trial_restoreFileName,"r");
-			fr1 = fopen(restoreFileName,"w");
+			fr = openShared(trial_restoreFileName,"r");
+			fr1 = openShared(restoreFileName,"w");
 			while ((bp=fgets(s, BUF_SIZE, fr))) {
 				fputs(s, fr1);
 			}
@@ -575,4 +579,18 @@ long read_array(FILE *fp, char *PVname, char *value_string, short field_type, lo
 	if (!status && end_of_file) status = end_of_file;
 
 	return(status);
+}
+
+/* open a file with shared access */
+FILE* openShared(const char* filename, const char* mode)
+{
+#ifdef _WIN32
+    if ( strchr(mode, 'r') && !strchr(mode, '+') )  {
+        return _fsopen(filename, mode, _SH_DENYNO); /* we are only reading, allow others all access */        
+    } else {
+        return _fsopen(filename, mode, _SH_DENYWR); /* we may write, so deny others write access */
+    }
+#else
+    return fopen(filename, mode);
+#endif /* _WIN32 */
 }
