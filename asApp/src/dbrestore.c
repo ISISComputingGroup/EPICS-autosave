@@ -171,7 +171,7 @@ STATIC int myFileCopy(const char *source, const char *dest)
 	if (stat(source, &fileStat) == 0) size = (int)fileStat.st_size;
 	errno = 0;
 	if ((source_fd = openShared(source,"rb")) == NULL) {
-		errlogPrintf("save_restore:myFileCopy: Can't open source file '%s'\n", source);
+		errlogPrintf("save_restore:myFileCopy: Can't open source file '%s': %s\n", source, strerror(errno));
 		/* if (errno) myPrintErrno("myFileCopy", __FILE__, __LINE__); */
 		if (++save_restoreIoErrors > save_restoreRemountThreshold) 
 			save_restoreNFSOK = 0;
@@ -183,7 +183,7 @@ STATIC int myFileCopy(const char *source, const char *dest)
 	 * a failed attempt was retried. (System calls never set errno to zero.)
 	 */
 	if ((dest_fd = openShared(dest,"wb")) == NULL) {
-		errlogPrintf("save_restore:myFileCopy: Can't open dest file '%s'\n", dest);
+		errlogPrintf("save_restore:myFileCopy: Can't open dest file '%s': %s\n", dest, strerror(errno));
 		/* if (errno) myPrintErrno("myFileCopy", __FILE__, __LINE__); */
 		fclose(source_fd);
 		return(ERROR);

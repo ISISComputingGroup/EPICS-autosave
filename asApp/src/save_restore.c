@@ -2070,8 +2070,8 @@ STATIC int write_save_file(struct chlist *plist, const char *configName, char *r
 		/* Ensure that backup is ok before we overwrite .sav file. */
 		backup_state = check_file(backup_file);
 		if (backup_state != BS_OK) {
-			printf("save_restore:write_save_file: Backup file (%s) bad or not found.  Writing a new one. [%s]\n",
-				backup_file, datetime);
+			printf("save_restore:write_save_file: Backup file (%s) %s.  Writing a new one. [%s]\n",
+				backup_file, (backup_state != BS_NONE ? "bad" : "not found"), datetime);
 			if (backup_state == BS_BAD) {
 				/* make a backup copy of the corrupted file */
 				strNcpy(tmpstr, backup_file, TMPSTRLEN);
