@@ -592,3 +592,13 @@ record(stringout, "$(P)$(CONFIG)Menu:cpDesc") {
 	field(DOL, "$(P)$(CONFIG)Menu:currDesc")
 	field(OUT, "$(P)$(CONFIG)Menu:desc PP")
 }
+
+## ISIS STFC additions so we can set a block to NAME for readback, which will
+## automatically use NAME:SP for setting a new config
+record(stringout, "$(P)$(CONFIG)Menu:NAME:SP") {
+    field(OUT, "$(P)$(CONFIG)Menu:name PP")
+}
+
+record(stringin, "$(P)$(CONFIG)Menu:NAME") {
+	field(INP, "$(P)$(CONFIG)Menu:currName CP")
+}
