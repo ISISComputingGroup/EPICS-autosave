@@ -164,6 +164,7 @@
 #include	<epicsMessageQueue.h>
 #include	<epicsExit.h>
 #include	<epicsStdio.h>
+#include	<epicsString.h>
 #include	<epicsExport.h>
 
 #include	"save_restore.h"
@@ -1016,7 +1017,8 @@ STATIC int save_restore(void)
 
 		/* look at each list */
 		while (waitForListLock(5) == 0) {
-			if (save_restoreDebug > 1) printf("save_restore: '%s' waiting for listLock()\n", plist->reqFile);
+			if (save_restoreDebug > 1)
+				printf("save_restore: '%s' waiting for listLock()\n", lptr ? lptr->reqFile : "<null>");
 		}
 		plist = lptr;
 		while (plist != 0) {
@@ -1318,7 +1320,9 @@ disable:
 				}
 
 				if (save_restoreDebug>1) printf("save_restore: manual save status=%d (0==success)\n", status);
-				epicsSnprintf(SR_recentlyStr, STATUS_STR_LEN-1, "Save of '%s' %s", (status ? msg.filename : plist->save_file), status?"Failed":"Succeeded");
+				epicsSnprintf(SR_recentlyStr, STATUS_STR_LEN-1, "Save of '%s' %s",
+								status ? msg.filename : (plist ? plist->save_file : "<null>"),
+  								status ? "Failed" : "Succeeded");
 				if (!status && num_errs) status = num_errs;
 				if (msg.callbackFunction) (msg.callbackFunction)(status, msg.puserPvt);
 				break;
@@ -1879,13 +1883,19 @@ STATIC int write_it(char *filename, struct chlist *plist)
 			/* write first BUF-SIZE-1 characters of long string, so dbrestore doesn't choke. */
 			strNcpy(value_string, pchannel->pArray, BUF_SIZE);
 			value_string[BUF_SIZE-1] = '\0';
-			n = fprintf(out_fd, "%-s\n", value_string);
+			n = epicsStrPrintEscaped(out_fd, value_string, strlen(value_string));
+			if (n > 0 || !strlen(value_string)) {
+				n = fprintf(out_fd, "\n");
+			}
 		} else if (pchannel->curr_elements <= 1) {
 			/* treat as scalar */
 			if (pchannel->enum_val >= 0) {
 				n = fprintf(out_fd, "%d\n",pchannel->enum_val);
 			} else {
-				n = fprintf(out_fd, "%-s\n", pchannel->value);
+				n = epicsStrPrintEscaped(out_fd, pchannel->value, strlen(pchannel->value));
+				if (n > 0 || !strlen(pchannel->value)) {
+					n = fprintf(out_fd, "\n");
+				}
 			}
 		} else {
 			/* treat as array */
@@ -1939,6 +1949,9 @@ STATIC int write_it(char *filename, struct chlist *plist)
 #else
 	n = fsync(fileno(out_fd));
 	if (n && (errno == ENOTSUP)) { n = 0; errno = 0; }
+#ifdef __rtems__
+	if (n && ((errno == EINVAL) || (errno == EROFS)) ) { n = 0; errno = 0; }
+#endif
 	if (n) {
 		printf("save_restore:write_it: fsync returned %d [%s]\n", n, datetime);
 		if (errno) myPrintErrno("write_it", __FILE__, __LINE__);
@@ -2061,7 +2074,7 @@ STATIC int write_save_file(struct chlist *plist, const char *configName, char *r
 	/* Currently, all lists do backups, unless their file path or file name comes from a PV, or the configName argument. */
 	if (plist->do_backups && (configName==NULL)) {
 		strNcpy(backup_file, save_file, NFS_PATH_LEN);
-		strncat(backup_file, "B", 1);
+		strncat(backup_file, "B", NFS_PATH_LEN + 2 - strlen(backup_file));
 
 		/* Ensure that backup is ok before we overwrite .sav file. */
 		backup_state = check_file(backup_file);
@@ -2099,6 +2112,7 @@ STATIC int write_save_file(struct chlist *plist, const char *configName, char *r
 		FILE *test_fd;
 
 		if ((test_fd = fopen(save_file,"rb")) != NULL) {
+			fclose(test_fd);
 			fGetDateStr(datetime);
 			strNcpy(backup_file, save_file, NFS_PATH_LEN);
 			strncat(backup_file, "_", NFS_PATH_LEN-strlen(backup_file));
@@ -2706,6 +2720,10 @@ STATIC int remove_data_set(char *filename)
 	op_msg msg;
 
 	msg.operation = op_Remove;
+	if ((filename == NULL) || (strlen(filename)<1) || (strlen(filename)>=OP_MSG_FILENAME_SIZE-1)) {
+		printf("remove_data_set: bad filename\n");
+		return(-1);
+	}
 	strNcpy(msg.filename, filename, OP_MSG_FILENAME_SIZE);
 	epicsMessageQueueSend(opMsgQueue, (void *)&msg, OP_MSG_SIZE);
 	return(0);
@@ -2785,6 +2803,10 @@ int reload_periodic_set(char *filename, int period, char *macrostring)
 
 	msg.operation = op_ReloadPeriodicSet;
 	msg.period = period;
+	if ((filename == NULL) || (strlen(filename)<1) || (strlen(filename)>=OP_MSG_FILENAME_SIZE-1)) {
+		printf("reload_periodic_set: bad filename\n");
+		return(-1);
+	}
 	strNcpy(msg.filename, filename, OP_MSG_FILENAME_SIZE);
 	if (strlen(macrostring) > (OP_MSG_MACRO_SIZE-1)) {
 		printf("macro string '%s' is too long for message queue\n", macrostring);
@@ -2800,6 +2822,10 @@ int reload_triggered_set(char *filename, char *trigger_channel, char *macrostrin
 	op_msg msg;
 
 	msg.operation = op_ReloadTriggeredSet;
+	if ((filename == NULL) || (strlen(filename)<1) || (strlen(filename)>=OP_MSG_FILENAME_SIZE-1)) {
+		printf("reload_triggered_set: bad filename\n");
+		return(-1);
+	}
 	strNcpy(msg.filename, filename, OP_MSG_FILENAME_SIZE);
 	if (strlen(macrostring) > (OP_MSG_MACRO_SIZE-1)) {
 		printf("macro string '%s' is too long for message queue\n", macrostring);
@@ -2818,6 +2844,10 @@ int reload_monitor_set(char * filename, int period, char *macrostring)
 
 	msg.operation = op_ReloadMonitorSet;
 	msg.period = period;
+	if ((filename == NULL) || (strlen(filename)<1) || (strlen(filename)>=OP_MSG_FILENAME_SIZE-1)) {
+		printf("reload_monitor_set: bad filename\n");
+		return(-1);
+	}
 	strNcpy(msg.filename, filename, OP_MSG_FILENAME_SIZE);
 	if (strlen(macrostring) > (OP_MSG_MACRO_SIZE-1)) {
 		printf("macro string '%s' is too long for message queue\n", macrostring);
@@ -2831,8 +2861,12 @@ int reload_monitor_set(char * filename, int period, char *macrostring)
 int reload_manual_set(char * filename, char *macrostring)
 {
 	op_msg msg;
-
+	
 	msg.operation = op_ReloadManualSet;
+	if ((filename == NULL) || (strlen(filename)<1) || (strlen(filename)>=OP_MSG_FILENAME_SIZE-1)) {
+		printf("reload_manual_set: bad filename\n");
+		return(-1);
+	}
 	strNcpy(msg.filename, filename, OP_MSG_FILENAME_SIZE);
 	if (strlen(macrostring) > (OP_MSG_MACRO_SIZE-1)) {
 		printf("macro string '%s' is too long for message queue\n", macrostring);
@@ -3037,6 +3071,12 @@ STATIC int manual_array_restore(FILE *inp_fd, char *PVname, chid chanid, char *v
 		}
 		/* doesn't look like array data.  just restore what we have */
 		if (p_data && !gobble) {
+			/* We do know the length of the buffer for sure, because this
+			   depends on the calling code, so we limit to the actual string
+			   size. The buffer must be one byte longer due to the terminating
+			   null byte. */
+			size_t value_string_len = strlen(value_string) + 1;
+			epicsStrnRawFromEscaped(value_string, value_string_len, value_string, value_string_len);
 			switch (field_type) {
 			case DBF_STRING:
 				/* future: translate escape sequence */
@@ -3116,7 +3156,7 @@ STATIC int manual_array_restore(FILE *inp_fd, char *PVname, chid chanid, char *v
 							printf("save_restore:manual_array_restore: new buffer: '%s'\n", bp);
 						}
 						if (*bp == ELEMENT_END) break;
-					} else if ((*bp == ESCAPE) && ((bp[1] == ELEMENT_BEGIN) || (bp[1] == ELEMENT_END))) {
+					} else if ((*bp == ESCAPE) && ((bp[1] == ELEMENT_BEGIN) || (bp[1] == ELEMENT_END) || (bp[1] == ESCAPE))) {
 						/* escaped character */
 						bp++;
 					}
@@ -3140,7 +3180,10 @@ STATIC int manual_array_restore(FILE *inp_fd, char *PVname, chid chanid, char *v
 						bp++; 
 						break;
 					case ESCAPE:
-						if (*(++bp) == ELEMENT_END)    { bp++; } 
+						++bp;
+						if (*bp == ELEMENT_END || *bp == ESCAPE) {
+							++bp;
+						}
 						break;
 					default:
 						if ((bp = fgets(buffer, BUF_SIZE, inp_fd)) == NULL) {
@@ -3152,9 +3195,9 @@ STATIC int manual_array_restore(FILE *inp_fd, char *PVname, chid chanid, char *v
 				if (!gobble && (num_read<max_elements)) {
 					/* Append value to local array. */
 					if (p_data) {
+						epicsStrnRawFromEscaped(string, MAX_STRING_SIZE, string, MAX_STRING_SIZE);
 						switch (field_type) {
 						case DBF_STRING:
-							/* future: translate escape sequence */
 							strNcpy(&(p_char[(num_read++)*MAX_STRING_SIZE]), string, MAX_STRING_SIZE);
 							break;
 						case DBF_ENUM:
@@ -3335,13 +3378,17 @@ STATIC int do_manual_restore(char *filename, int file_type, char *macrostring)
 			for (pchannel = plist->pchan_list; pchannel !=0; pchannel = pchannel->pnext) {
 				if (pchannel->curr_elements <= 1) {
 					status = ca_put(DBR_STRING, pchannel->chid, pchannel->value);
-					if (status) printf("do_manual_restore:ca_put() to '%s'failed.\n", pchannel->name);
+					if (status!=ECA_NORMAL)
+						printf("do_manual_restore:ca_put() to '%s' failed with %lu.\n",
+							pchannel->name, status);
 				} else {
 					status = SR_put_array_values(pchannel->name, pchannel->pArray, pchannel->curr_elements);
-					if (status) printf("do_manual_restore:SR_put_array_values() to '%s'failed.\n", pchannel->name);
+					if (status!=ECA_NORMAL)
+						printf("do_manual_restore:SR_put_array_values() to '%s' failed with %lu.\n",
+							pchannel->name, status);
 				}
+				if (status!=ECA_NORMAL) num_errs++;
 			}
-			if (status) num_errs++;
 			if (ca_pend_io(1.0) != ECA_NORMAL) {
 				printf("save_restore:do_manual_restore: not all channels restored\n");
 			}
@@ -3437,6 +3484,7 @@ STATIC int do_manual_restore(char *filename, int file_type, char *macrostring)
 				if (!is_long_string) {
 					/* Discard additional characters until end of line */
 					while (bp[strlen(bp)-1] != '\n') fgets(buffer, BUF_SIZE, inp_fd);
+					epicsStrnRawFromEscaped(value_string, BUF_SIZE, value_string, BUF_SIZE);
 					value_string[40] = '\0';
 					if (ca_search(realName, &chanid) != ECA_NORMAL) {
 						printf("save_restore:do_manual_restore: ca_search for %s failed\n", realName);
@@ -3462,6 +3510,7 @@ STATIC int do_manual_restore(char *filename, int file_type, char *macrostring)
 					}
 					/* Discard additional characters until end of line */
 					while (bp[strlen(bp)-1] != '\n') bp = fgets(buffer, BUF_SIZE, inp_fd);
+					epicsStrnRawFromEscaped(value_string, BUF_SIZE, value_string, BUF_SIZE);
 					if (ca_search(PVname, &chanid) != ECA_NORMAL) {
 						printf("save_restore:do_manual_restore: ca_search for %s failed\n", PVname);
 						num_errs++;

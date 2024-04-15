@@ -90,6 +90,7 @@
 #include	<dbAccessDefs.h>
 #include	<epicsStdio.h>
 #include	<epicsExport.h>
+#include    <epicsStdlib.h>
 
 #ifndef vxWorks
 #define OK 0
@@ -214,13 +215,20 @@ STATIC int myFileCopy(const char *source, const char *dest)
 }
 
 
-STATIC long scalar_restore(int pass, DBENTRY *pdbentry, char *PVname, char *value_string)
+STATIC long scalar_restore(int pass, DBENTRY *pdbentry, char *PVname, char *value_string, int is_long_string)
 {
 	long 	n, status = 0;
 	DBADDR	dbaddr;
 	DBADDR	*paddr = &dbaddr;
 	dbfType field_type = pdbentry->pflddes->field_type;
 	short special = pdbentry->pflddes->special;
+	/* The buffer holding the string value must be at least one byte longer than
+	   the actual value (due to the terminating null byte). */
+	size_t value_string_len = strlen(value_string) + 1;
+
+	/* We do know the length of the buffer for sure, because this depends on the
+	   calling code, so we limit to the actual string size. */
+	epicsStrnRawFromEscaped(value_string, value_string_len, value_string, value_string_len);
 
 	if (save_restoreDebug >= 5) errlogPrintf("dbrestore:scalar_restore:entry:field type '%s'\n", pamapdbfType[field_type].strvalue);
 	switch (field_type) {
@@ -228,6 +236,9 @@ STATIC long scalar_restore(int pass, DBENTRY *pdbentry, char *PVname, char *valu
 	case DBF_CHAR:   case DBF_UCHAR:
 	case DBF_SHORT:  case DBF_USHORT:
 	case DBF_LONG:   case DBF_ULONG:
+	#ifdef DBR_INT64
+	case DBF_INT64:  case DBF_UINT64:
+	#endif
 	case DBF_FLOAT:  case DBF_DOUBLE:
 		/*
 		 * check SPC_CALC fields against new (3.13.9) requirement that CALC
@@ -271,7 +282,11 @@ STATIC long scalar_restore(int pass, DBENTRY *pdbentry, char *PVname, char *valu
 		if (pass == 1) {
 			status = dbNameToAddr(PVname, paddr);
 			if (!status) {
-				status = dbPut(paddr, DBR_STRING, value_string, 1);
+				if (is_long_string && paddr->field_type == DBF_CHAR) {
+					status = dbPut(paddr, DBF_CHAR, value_string, strlen(value_string) + 1);
+				} else {
+					status = dbPut(paddr, DBF_STRING, value_string, 1);
+				}
 			}
 		} else if (save_restoreDebug > 1) {
 			errlogPrintf("dbrestore:scalar_restore: Can't restore DBF_NOACCESS field (%s) in pass 0.\n", PVname);
@@ -379,9 +394,11 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 	char			*p_char = NULL;
 	short			*p_short = NULL;
 	epicsInt32		*p_long = NULL;
+	epicsInt64		*p_int64 = NULL;
 	unsigned char	*p_uchar = NULL;
 	unsigned short	*p_ushort = NULL;
 	epicsUInt32		*p_ulong = NULL;
+	epicsUInt64		*p_uint64 = NULL;
 	float			*p_float = NULL;
 	double			*p_double = NULL;
 
@@ -426,6 +443,10 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 		case DBF_SHORT:                                p_short = (short *)p_data;           break;
 		case DBF_ULONG:                                p_ulong = (epicsUInt32 *)p_data;     break;
 		case DBF_LONG:                                 p_long = (epicsInt32 *)p_data;       break;
+		#ifdef DBR_INT64
+		case DBF_INT64:                                p_int64 = (epicsInt64 *)p_data;      break;
+		case DBF_UINT64:                               p_uint64 = (epicsUInt64 *)p_data;    break;
+		#endif
 		case DBF_FLOAT:                                p_float = (float *)p_data;           break;
 		case DBF_DOUBLE:                               p_double = (double *)p_data;         break;
 		case DBF_NOACCESS:
@@ -471,6 +492,14 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 			case DBF_ULONG:
 				p_ulong[num_read++] = (epicsUInt32) 0;
 				break;
+			#ifdef DBR_INT64
+			case DBF_INT64:
+				p_int64[num_read++] = (epicsInt64) 0;
+				break;
+			case DBF_UINT64:
+				p_uint64[num_read++] = (epicsUInt64) 0;
+				break;
+			#endif
 			case DBF_FLOAT:
 				p_float[num_read++] = 0;
 				break;
@@ -488,6 +517,12 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 		}
 		/* doesn't look like array data.  just restore what we have */
 		if (p_data) {
+			/* We do know the length of the buffer for sure, because this
+			   depends on the calling code, so we limit to the actual string
+			   size. The buffer must be one byte longer, due to the terminating
+			   null byte. */
+			size_t value_string_len = strlen(value_string) + 1;
+			epicsStrnRawFromEscaped(value_string, value_string_len, value_string, value_string_len);
 			switch (field_type) {
 			case DBF_STRING:
 				/* future: translate escape sequence */
@@ -511,6 +546,14 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 			case DBF_ULONG:
 				p_ulong[num_read++] = (epicsUInt32) strtoul(value_string,NULL,0);
 				break;
+			#ifdef DBR_INT64
+			case DBF_INT64:
+				epicsParseInt64(value_string, &p_int64[num_read++], 10, NULL);
+				break;
+			case DBF_UINT64:
+				epicsParseUInt64(value_string, &p_uint64[num_read++], 10, NULL);
+				break;
+			#endif
 			case DBF_FLOAT:
 				p_float[num_read++] = mySafeDoubleToFloat(atof(value_string));
 				break;
@@ -574,7 +617,7 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 							errlogPrintf("dbrestore:SR_array_restore: new buffer: '%s'\n", bp);
 						}
 						if (*bp == ELEMENT_END) break;
-					} else if ((*bp == ESCAPE) && ((bp[1] == ELEMENT_BEGIN) || (bp[1] == ELEMENT_END))) {
+					} else if ((*bp == ESCAPE) && ((bp[1] == ELEMENT_BEGIN) || (bp[1] == ELEMENT_END) || (bp[1] == ESCAPE))) {
 						/* escaped character */
 						bp++;
 					}
@@ -598,7 +641,10 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 						bp++; 
 						break;
 					case ESCAPE:
-						if (*(++bp) == ELEMENT_END)    { bp++; } 
+						++bp;
+						if (*bp == ELEMENT_END || *bp == ESCAPE) {
+							++bp;
+						}
 						break;
 					default:
 						if ((bp = fgets(buffer, BUF_SIZE, inp_fd)) == NULL) {
@@ -610,9 +656,9 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 				if ((num_read<max_elements) && !gobble) {
 					/* Append value to local array. */
 					if (p_data) {
+						epicsStrnRawFromEscaped(string, MAX_STRING_SIZE, string, MAX_STRING_SIZE);
 						switch (field_type) {
 						case DBF_STRING:
-							/* future: translate escape sequence */
 							strNcpy(&(p_char[(num_read++)*MAX_STRING_SIZE]), string, MAX_STRING_SIZE);
 							break;
 						case DBF_ENUM: case DBF_USHORT: case DBF_MENU:
@@ -634,6 +680,14 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 							/*p_ulong[num_read++] = (epicsUInt32) atol(string);*/
 							p_ulong[num_read++] = (epicsUInt32) strtoul(string,NULL,0);
 							break;
+						#ifdef DBR_INT64
+						case DBF_INT64:
+							epicsParseInt64(string, &p_int64[num_read++], 10, NULL);
+							break;
+						case DBF_UINT64:
+							epicsParseUInt64(string, &p_uint64[num_read++], 10, NULL);
+							break;
+						#endif
 						case DBF_FLOAT:
 							p_float[num_read++] = mySafeDoubleToFloat(atof(string));
 							break;
@@ -667,6 +721,12 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 					errlogPrintf("	%u\n", p_ulong[j]); break;
 				case DBF_LONG:
 					errlogPrintf("	%d\n", p_long[j]); break;
+				#ifdef DBR_INT64
+				case DBF_UINT64:
+					errlogPrintf("	%llu\n", p_uint64[j]); break;
+				case DBF_INT64:
+					errlogPrintf("	%lld\n", p_int64[j]); break;
+				#endif
 				case DBF_FLOAT:
 					errlogPrintf("	%f\n", p_float[j]); break;
 				case DBF_DOUBLE:
@@ -752,7 +812,6 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
 	return(status);
 }
 
-
 /*
  * file_restore
  *
@@ -776,7 +835,7 @@ long SR_array_restore(int pass, FILE *inp_fd, char *PVname, char *value_string, 
  */
 int reboot_restore(char *filename, initHookState init_state)
 {
-	char		PVname[81]; /* Must be greater than max field width ("%80s") in the sscanf format below */
+    char		PVname[PV_NAME_LEN+1]; /* Must be greater than max field width ("%80s") in the sscanf format below */
 	char		bu_filename[PATH_SIZE+1], fname[PATH_SIZE+1] = "";
 	char		buffer[BUF_SIZE], *bp;
 	char		ebuffer[EBUF_SIZE]; /* make room for macro expansion */
@@ -799,7 +858,8 @@ int reboot_restore(char *filename, initHookState init_state)
 	char		**pairs = NULL;
 	char		*macrostring = NULL;
 
-	errlogPrintf("reboot_restore: entry for file '%s'\n", filename);
+	if (save_restoreDebug)
+		errlogPrintf("reboot_restore: entry for file '%s'\n", filename);
 	/* initialize database access routines */
 	if (!pdbbase) {
 		errlogPrintf("reboot_restore: No Database Loaded\n");
@@ -829,7 +889,7 @@ int reboot_restore(char *filename, initHookState init_state)
 	if ((pStatusVal == 0) || (statusStr == 0)) {
 		errlogPrintf("reboot_restore: Can't find filename '%s' in list.\n",
 			filename);
-	} else {
+	} else if (save_restoreDebug) {
 		errlogPrintf("reboot_restore: Found filename '%s' in restoreFileList.\n",
 			filename);
 	}
@@ -840,8 +900,9 @@ int reboot_restore(char *filename, initHookState init_state)
 	} else {
 		makeNfsPath(fname, saveRestoreFilePath, filename);
 	}
-	errlogPrintf("*** restoring from '%s' at initHookState %d (%s record/device init) ***\n",
-		fname, (int)init_state, pass ? "after" : "before");
+	if (save_restoreDebug)
+		errlogPrintf("*** restoring from '%s' at initHookState %d (%s record/device init) ***\n",
+			fname, (int)init_state, pass ? "after" : "before");
 	if ((inp_fd = fopen_and_check(fname, &status)) == NULL) {
 		errlogPrintf("save_restore: Can't open save file.");
 		if (pStatusVal) *pStatusVal = SR_STATUS_FAIL;
@@ -987,7 +1048,7 @@ int reboot_restore(char *filename, initHookState init_state)
 			}
 			if (found_field) {
 				if (is_scalar || is_long_string) {
-					status = scalar_restore(pass, pdbentry, PVname, value_string);
+					status = scalar_restore(pass, pdbentry, PVname, value_string, is_long_string);
 				} else {
 					status = SR_array_restore(pass, inp_fd, PVname, value_string, 0);
 				}
@@ -1088,7 +1149,8 @@ int reboot_restore(char *filename, initHookState init_state)
 		p_data = NULL;
 		p_data_size = 0;
 	}
-	errlogPrintf("reboot_restore: done with file '%s'\n\n", filename);
+	if (save_restoreDebug)
+		errlogPrintf("reboot_restore: done with file '%s'\n\n", filename);
 	return(OK);
 }
 
@@ -1242,7 +1304,7 @@ FILE *fopen_and_check(const char *fname, long *status)
 	if (inp_fd) return(inp_fd);
 
 	/* Still here?  Try the backup file. */
-	strncat(file, "B", 1);
+	strncat(file, "B", PATH_SIZE - strlen(file));
 	errlogPrintf("save_restore: Trying backup file '%s'\n", file);
 	inp_fd = checkFile(file);
 	if (inp_fd) return(inp_fd);
@@ -1386,11 +1448,17 @@ long SR_write_array_data(FILE *out_fd, char *name, void *pArray, long num_elemen
 			pc = &p_char[i*MAX_STRING_SIZE];
 			n += fprintf(out_fd, "%1c", ELEMENT_BEGIN);
 			for (j=0; j<MAX_STRING_SIZE-1 && *pc; j++, pc++) {
-				if ((*pc == ELEMENT_BEGIN) || (*pc == ELEMENT_END)){
+				if ((*pc == ELEMENT_BEGIN) || (*pc == ELEMENT_END) || (*pc == ESCAPE)) {
 					n += fprintf(out_fd, "%1c", ESCAPE);
 					j++;
 				}
-				n += fprintf(out_fd, "%1c", *pc);
+				if (*pc == '\n') {
+					n += fprintf(out_fd, "%1cn", ESCAPE);
+				} else if (*pc == '\r') {
+					n += fprintf(out_fd, "%1cr", ESCAPE);
+				} else {
+					n += fprintf(out_fd, "%1c", *pc);
+				}
 			}
 			n += fprintf(out_fd, "%1c ", ELEMENT_END);
 			break;
