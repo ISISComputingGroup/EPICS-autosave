@@ -4,7 +4,7 @@ O.*/
 *BAK.adl
 bin/
 /db/
-/dbd/
+dbd/
 html/
 include/
 lib/
