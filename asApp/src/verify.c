@@ -36,6 +36,7 @@ int do_asVerify(char *fileName, int verbose, int debug, int write_restore_file, 
 	float	*pfvalue, *pf_read;
 	double	*pdvalue, *pd_read, diff, max_diff=0.;
 	short	*penum_value, *penum_value_read;
+	epicsInt32 *plvalue, *pl_read;
 	char	*svalue, *svalue_read;
 	chid	chid;
 	FILE	*fp=NULL, *fr=NULL, *fr1=NULL;
@@ -129,12 +130,14 @@ int do_asVerify(char *fileName, int verbose, int debug, int write_restore_file, 
 			field_type = ca_field_type(chid);
 			if (debug>3) printf("'%s' native field_type=%d\n", PVname, field_type);
 			is_long_string = (field_type==DBF_CHAR) && (PVname[strlen(PVname)-1]=='$');
-			/* If DBF_STRING will work, use it. */
-			if (field_type!=DBF_FLOAT && field_type!=DBF_DOUBLE && field_type!=DBF_ENUM)
-				field_type = DBF_STRING;
-			if (field_type==DBF_ENUM) field_type = DBF_SHORT;
-
 			element_count = ca_element_count(chid);
+			if (field_type==DBF_ENUM) field_type = DBF_SHORT;
+			if (!is_long_string && field_type==DBF_CHAR && element_count==1) field_type = DBF_SHORT;
+			/* If DBF_STRING will work, use it. */
+			if (field_type!=DBF_FLOAT && field_type!=DBF_DOUBLE &&
+				field_type!=DBF_SHORT && field_type!=DBF_LONG)
+					field_type = DBF_STRING;
+
 			is_scalar_in_file = strncmp(value_string, ARRAY_MARKER, ARRAY_MARKER_LEN) != 0;
 			is_scalar = is_scalar_in_file;
 			if (element_count > 1) is_scalar = 0;
@@ -286,6 +289,45 @@ int do_asVerify(char *fileName, int verbose, int debug, int write_restore_file, 
 						fprintf(fr, "%s %-s %1c ", PVname, ARRAY_MARKER, ARRAY_BEGIN);
 						for (i=0; i<element_count; i++) {
 							fprintf(fr, "%1c%d%1c ", ELEMENT_BEGIN, penum_value[i], ELEMENT_END);
+						}
+						fprintf(fr, "%1c\n", ARRAY_END);
+					}
+				}
+				break;
+			case  DBF_LONG:
+				plvalue = (epicsInt32 *)CA_buffer;
+				status = ca_array_get(DBR_LONG,element_count,chid,(void *)plvalue);
+				if (status & CA_M_SUCCESS) status = ca_pend_io(PEND_TIME);
+				if (!(status & CA_M_SUCCESS)) printf("Can't get value from '%s'.\n", PVname);
+				if (is_scalar == is_scalar_in_file) {
+					if (is_scalar) {
+						different = atol(value_string) != *plvalue;
+					} else {
+						pl_read = (epicsInt32 *)read_buffer;
+						for (i=0, different=0; i<element_count; i++) {
+							different += (pl_read[i] != plvalue[i]);
+						}
+					}
+					if (different) numDifferences++;
+					 if (different || (verbose>0)) {
+						WRITE_HEADER;
+						if (is_scalar) {
+							printf("%s%-25s %-25ld %ld\n", different?"*** ":"    ", PVname, atol(value_string), (long)(*plvalue));
+						} else {
+							printf("%s%-25s (array) %d diff%1c\n", different?"*** ":"    ", PVname, different, different==1?' ':'s');
+						}
+					}
+				} else {
+					printf("*** %-25s is %s in file, but %s in ioc.\n", PVname,
+						is_scalar_in_file?"scalar":"array", is_scalar?"scalar":"array");
+				}
+				if (write_restore_file) {
+					if (is_scalar) {
+						fprintf(fr, "%s %ld\n", PVname, (long)(*plvalue));
+					} else {
+						fprintf(fr, "%s %-s %1c ", PVname, ARRAY_MARKER, ARRAY_BEGIN);
+						for (i=0; i<element_count; i++) {
+							fprintf(fr, "%1c%ld%1c ", ELEMENT_BEGIN, (long)plvalue[i], ELEMENT_END);
 						}
 						fprintf(fr, "%1c\n", ARRAY_END);
 					}
