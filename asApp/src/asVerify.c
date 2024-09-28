@@ -80,10 +80,10 @@ int main(int argc,char **argv)
 	 * Copy to temporary file.
 	 * The .sav file is likely to be overwritten while we're using it.
 	 */
-	fp = fopen(filename,"r");
+	fp = openShared(filename,"r");
 	if (fp == NULL) {printf("Can't open %s\n", filename); return(-1);}
 	tempname = tmpnam(NULL);
-	ftmp = fopen(tempname,"w");
+	ftmp = openShared(tempname,"w");
 	if (ftmp == NULL) {printf("Can't open temp file \"%s\".\n", tempname); return(-1);}
 	while (!feof(fp) && (n=fread(s,1,BUF_SIZE,fp))) {
 		fwrite(s,1,n,ftmp);
