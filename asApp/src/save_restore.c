@@ -1937,7 +1937,7 @@ STATIC int write_it(char *filename, struct chlist *plist)
 		if (errno) myPrintErrno("write_it", __FILE__, __LINE__);
 	}
 #elif defined(_WIN32)
-    n = _commit(fileno(out_fd));
+    n = _commit(_fileno(out_fd));
     if (n) {
 		printf("save_restore:write_it: _commit failed [%s]\n", n, datetime);
     }
