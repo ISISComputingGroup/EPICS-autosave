@@ -140,6 +140,7 @@
 #else
 #include    <windows.h>
 #include	"tr_dirent.h" /* for dirList */
+#include    <io.h> /* for _commit */
 #endif
 #include	<string.h>
 #include	<ctype.h>
@@ -1946,7 +1947,11 @@ STATIC int write_it(char *filename, struct chlist *plist)
 		if (errno) myPrintErrno("write_it", __FILE__, __LINE__);
 	}
 #elif defined(_WIN32)
-        /* WIN32 has no real equivalent to fsync? */
+    n = _commit(_fileno(out_fd));
+    if (n) {
+        printf("save_restore:write_it: _commit returned %d [%s]\n", n, datetime);
+        if (errno) myPrintErrno("write_it", __FILE__, __LINE__);
+    }
 #else
 	n = fsync(fileno(out_fd));
 	if (n && (errno == ENOTSUP)) { n = 0; errno = 0; }
